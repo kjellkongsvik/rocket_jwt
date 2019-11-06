@@ -4,9 +4,6 @@ use rocket::request::{self, FromRequest, Request};
 use rocket::{Outcome, Rocket, State};
 
 #[macro_use]
-extern crate dotenv_codegen;
-
-#[macro_use]
 extern crate rocket;
 
 struct ApiKey(String);
@@ -50,7 +47,7 @@ fn index(_key: ApiKey) -> &'static str {
 
 fn rocket() -> Rocket {
     let config = JWKS {
-        user_val: dotenv!["AUTHSERVER"].to_string(),
+        user_val: "AUTHSERVER".to_string(),
     };
     rocket::ignite().mount("/", routes![index]).manage(config)
 }

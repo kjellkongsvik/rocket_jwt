@@ -1,10 +1,7 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 use rocket::http::Status;
 use rocket::request::{self, FromRequest, Request};
-use rocket::{Outcome, Rocket, State};
-
-#[macro_use]
-extern crate rocket;
+use rocket::{get, routes, Outcome, Rocket, State};
 
 struct ApiKey(String);
 

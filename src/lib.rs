@@ -1,0 +1,38 @@
+use jsonwebtoken::errors::ErrorKind;
+use jsonwebtoken::{decode, Validation};
+use rocket::http::Status;
+use rocket::request::{self, FromRequest, Request};
+use rocket::{Outcome, State};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug)]
+pub struct TokenSecret(pub String);
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub exp: usize,
+}
+
+pub struct JWT(String);
+
+impl<'a, 'r> FromRequest<'a, 'r> for JWT {
+    type Error = jsonwebtoken::errors::ErrorKind;
+
+    fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
+        let secret = request
+            .guard::<State<TokenSecret>>()
+            .succeeded()
+            .unwrap()
+            .inner()
+            .0
+            .clone();
+        let keys: Vec<_> = request.headers().get("Authorization").collect();
+        match keys.len() {
+            1 => match decode::<Claims>(&keys[0], secret.as_ref(), &Validation::default()) {
+                Ok(_) => Outcome::Success(JWT("".to_string())),
+                Err(e) => Outcome::Failure((Status::Unauthorized, e.into_kind())),
+            },
+            _ => return Outcome::Failure((Status::Unauthorized, ErrorKind::InvalidToken)),
+        }
+    }
+}

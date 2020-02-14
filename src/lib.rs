@@ -1,5 +1,5 @@
 use jsonwebtoken::errors::ErrorKind;
-use jsonwebtoken::{decode, Validation};
+use jsonwebtoken::{decode, DecodingKey, Validation};
 use rocket::http::Status;
 use rocket::request::{self, FromRequest, Request};
 use rocket::{Outcome, State};
@@ -28,11 +28,15 @@ impl<'a, 'r> FromRequest<'a, 'r> for JWT {
             .clone();
         let keys: Vec<_> = request.headers().get("Authorization").collect();
         match keys.len() {
-            1 => match decode::<Claims>(&keys[0], secret.as_ref(), &Validation::default()) {
+            1 => match decode::<Claims>(
+                &keys[0],
+                &DecodingKey::from_secret(secret.as_ref()),
+                &Validation::default(),
+            ) {
                 Ok(_) => Outcome::Success(JWT("".to_string())),
                 Err(e) => Outcome::Failure((Status::Unauthorized, e.into_kind())),
             },
-            _ => return Outcome::Failure((Status::Unauthorized, ErrorKind::InvalidToken)),
+            _ => Outcome::Failure((Status::Unauthorized, ErrorKind::InvalidToken)),
         }
     }
 }

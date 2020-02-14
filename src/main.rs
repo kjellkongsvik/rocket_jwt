@@ -24,8 +24,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jsonwebtoken::encode;
     use jsonwebtoken::Header as jwtHeader;
+    use jsonwebtoken::{encode, EncodingKey};
     use rocket::http::{Header, Status};
     use rocket::local::Client;
     use rocket_jwt::Claims;
@@ -35,7 +35,12 @@ mod tests {
             exp: 10_000_000_000,
         };
         let key = "very_secret";
-        encode(&jwtHeader::default(), &my_claims, key.as_ref()).unwrap()
+        encode(
+            &jwtHeader::default(),
+            &my_claims,
+            &EncodingKey::from_secret(key.as_ref()),
+        )
+        .unwrap()
     }
 
     #[rocket::async_test]
@@ -48,7 +53,6 @@ mod tests {
     #[rocket::async_test]
     async fn test_200() {
         let header = Header::new("Authorization", jwt());
-
         let client = Client::new(rocket()).expect("valid rocket instance");
         let response = client.get("/").header(header).dispatch().await;
         assert_eq!(response.status(), Status::Ok);

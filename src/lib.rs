@@ -21,9 +21,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for JWT {
     fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
         let secret = request
             .guard::<State<TokenSecret>>()
-            .succeeded()
-            .unwrap()
-            .inner()
+            .expect("Token secret stored in state")
             .0
             .clone();
         let keys: Vec<_> = request.headers().get("Authorization").collect();

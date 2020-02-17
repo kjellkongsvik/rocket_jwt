@@ -9,16 +9,19 @@ fn index(_jwt: JWT) -> String {
 }
 
 fn rocket() -> Rocket {
-    rocket::ignite()
-        .mount("/", routes![index])
-        .attach(AdHoc::on_attach("TokenSecret", |rocket| {
-            let token_val = rocket.config().get_string("token_secret").unwrap();
-            Ok(rocket.manage(TokenSecret(token_val)))
-        }))
+    rocket::ignite().mount("/", routes![index])
 }
 
-fn main() {
-    let _ = rocket().launch();
+fn main() -> Result<(), rocket::error::Error> {
+    rocket()
+        .attach(AdHoc::on_attach("TokenSecret", |r| {
+            let token_val = match r.config().get_string("token_secret") {
+                Ok(t) => t,
+                _ => return Err(r),
+            };
+            Ok(r.manage(TokenSecret(token_val)))
+        }))
+        .launch()
 }
 
 #[cfg(test)]
@@ -30,22 +33,29 @@ mod tests {
     use rocket::local::Client;
     use rocket_jwt::Claims;
 
+    fn secret_key() -> String {
+        "very_secret".to_string()
+    }
+
     fn jwt() -> String {
         let my_claims = Claims {
             exp: 10_000_000_000,
         };
-        let key = "very_secret";
         encode(
             &jwtHeader::default(),
             &my_claims,
-            &EncodingKey::from_secret(key.as_ref()),
+            &EncodingKey::from_secret(secret_key().as_ref()),
         )
         .unwrap()
     }
 
+    fn manage_token_secret() -> AdHoc {
+        AdHoc::on_attach("TokenSecret", |r| Ok(r.manage(TokenSecret(secret_key()))))
+    }
+
     #[rocket::async_test]
     async fn test_401() {
-        let client = Client::new(rocket()).unwrap();
+        let client = Client::new(rocket().attach(manage_token_secret())).unwrap();
         let response = client.get("/").dispatch().await;
         assert_eq!(response.status(), Status::Unauthorized);
     }
@@ -53,7 +63,7 @@ mod tests {
     #[rocket::async_test]
     async fn test_200() {
         let header = Header::new("Authorization", jwt());
-        let client = Client::new(rocket()).expect("valid rocket instance");
+        let client = Client::new(rocket().attach(manage_token_secret())).unwrap();
         let response = client.get("/").header(header).dispatch().await;
         assert_eq!(response.status(), Status::Ok);
     }
